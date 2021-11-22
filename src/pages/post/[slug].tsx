@@ -12,9 +12,12 @@ import Header from '../../components/Header';
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
+import { Comments } from '../../components/Comments';
+import { NavigationSection } from '../../components/NavigationSection';
 
 interface Post {
   first_publication_date: string | null;
+  last_publication_date: string | null;
   data: {
     title: string;
     banner: {
@@ -32,9 +35,26 @@ interface Post {
 
 interface PostProps {
   post: Post;
+  navigationItems?: {
+    nextPost?: {
+      uid: string;
+      data: {
+        title: string;
+      };
+    };
+    previousPost?: {
+      uid: string;
+      data: {
+        title: string;
+      };
+    };
+  };
 }
 
-export default function Post({ post }: PostProps): JSX.Element {
+export default function Post({
+  post,
+  navigationItems,
+}: PostProps): JSX.Element {
   const router = useRouter();
 
   if (router.isFallback) {
@@ -62,6 +82,10 @@ export default function Post({ post }: PostProps): JSX.Element {
 
   const timeToRead = `${Math.ceil(words / wpm)} min`;
 
+  const lastEditedArray = post.last_publication_date.split(' ');
+  const lastEditedDate = `${lastEditedArray[0]} ${lastEditedArray[1]} ${lastEditedArray[2]}`;
+  const lastEditedTime = `${lastEditedArray[3]}`;
+
   return (
     <div className={styles.container}>
       <Header />
@@ -86,6 +110,9 @@ export default function Post({ post }: PostProps): JSX.Element {
             <span>{timeToRead}</span>
           </div>
         </div>
+        <span className={styles.lastEdited}>
+          *editado em {lastEditedDate}, às {lastEditedTime}
+        </span>
 
         <div className={styles.bodyContent}>
           {formattedContent.map(item => {
@@ -97,6 +124,13 @@ export default function Post({ post }: PostProps): JSX.Element {
             );
           })}
         </div>
+
+        <NavigationSection
+          nextPost={navigationItems?.nextPost}
+          previousPost={navigationItems?.previousPost}
+        />
+
+        <Comments />
       </div>
     </div>
   );
@@ -129,9 +163,47 @@ export const getStaticProps: GetStaticProps = async context => {
   const prismic = getPrismicClient();
   const response = await prismic.getByUID('posts', String(slug), {});
 
+  const postsResponse = await prismic.query(
+    [Prismic.predicates.at('document.type', 'posts')],
+    {
+      fetch: ['post.title', 'post.subtitle', 'post.author'],
+    }
+  );
+
+  const results = postsResponse.results.map(post => {
+    return {
+      uid: post.uid,
+      data: {
+        title: post.data.title,
+      },
+    };
+  });
+
+  const currentPostPositionIndex = results.findIndex(
+    post => post.uid === response.uid
+  );
+
+  const otherPosts = results.filter(
+    (post, index) =>
+      index === currentPostPositionIndex + 1 ||
+      index === currentPostPositionIndex - 1
+  );
+
+  const navigationItems = {
+    nextPost: otherPosts[1] ?? null,
+    previousPost: otherPosts[0] ?? null,
+  };
+
   const post = {
     uid: response.uid,
     first_publication_date: response.first_publication_date,
+    last_publication_date: format(
+      new Date(response.last_publication_date),
+      'dd LLL y HH:MM',
+      {
+        locale: ptBR,
+      }
+    ),
     data: {
       title: response.data.title,
       subtitle: response.data.subtitle,
@@ -146,6 +218,7 @@ export const getStaticProps: GetStaticProps = async context => {
   return {
     props: {
       post,
+      navigationItems,
     },
   };
 };

@@ -30,3 +30,17 @@
     color: var(--info);
   }
 }
+
+.previewButton {
+  width: 700px;
+  height: 58px;
+  background-color: #f8f8f8;
+  color: #282c34;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 88px;
+  border-radius: 4px;
+}
